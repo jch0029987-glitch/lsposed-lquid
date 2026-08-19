@@ -29,7 +29,6 @@ class GlassModule : XposedModule() {
             val targetClassLoader = param.classLoader ?: Thread.currentThread().contextClassLoader
             val layoutInflaterClass = targetClassLoader.loadClass("android.view.LayoutInflater")
 
-            // Hook the primary inflate overload: View inflate(int resource, ViewGroup root, boolean attachToRoot)
             val inflateMethod = layoutInflaterClass.getDeclaredMethod(
                 "inflate",
                 Int::class.javaPrimitiveType,
@@ -48,7 +47,6 @@ class GlassModule : XposedModule() {
                         try {
                             val resName = inflatedView.resources.getResourceEntryName(resourceId) ?: ""
                             
-                            // Target shade, quick settings, status bar, or notification panel layout identifiers
                             if (resName.contains("notification_shade") || 
                                 resName.contains("status_bar") || 
                                 resName.contains("quick_settings") ||
@@ -58,7 +56,7 @@ class GlassModule : XposedModule() {
                                 applyGlassEffect(inflatedView, resName)
                             }
                         } catch (_: Resources.NotFoundException) {
-                            // Resource ID might not have a friendly entry name in this context, ignore safely
+                            // Ignored if resource name isn't mapped in this context
                         }
                     }
                 } catch (innerE: Throwable) {
