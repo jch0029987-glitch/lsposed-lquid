@@ -7,7 +7,7 @@ import android.os.Build
 import android.util.Log
 import android.view.View
 import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
+import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 
 class GlassModule : XposedModule() {
 
@@ -15,14 +15,14 @@ class GlassModule : XposedModule() {
         private const val TAG = "GlassPanel"
     }
 
-    override fun onPackageLoaded(param: PackageLoadedParam) {
+    override fun onPackageReady(param: PackageReadyParam) {
         if (param.packageName != "com.android.systemui") return
 
         Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
-            // Retrieve classloader safely via context or system fallback if param lacks direct property
-            val targetClassLoader = param.getClassLoader() ?: ClassLoader.getSystemClassLoader()
+            // PackageReadyParam guarantees the classloader is available
+            val targetClassLoader = param.classLoader
 
             val targetClass = try {
                 targetClassLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
@@ -40,8 +40,8 @@ class GlassModule : XposedModule() {
                     val view = chain.thisObject as? View
                     if (view != null) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            // Explicit function call prevents property resolution failure
-                            if (view.getRenderEffect() == null) {
+                            // Check renderEffect safely
+                            if (view.renderEffect == null) {
                                 view.setBackgroundColor(Color.argb(45, 15, 15, 15))
 
                                 val blurEffect = RenderEffect.createBlurEffect(
