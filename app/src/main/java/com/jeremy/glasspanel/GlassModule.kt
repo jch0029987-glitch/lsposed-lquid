@@ -21,26 +21,27 @@ class GlassModule : XposedModule() {
         Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
-            val classLoader = param.classLoader
+            // Safely resolve class loader from the package loaded parameters
+            val targetClassLoader = param.classLoader
 
             // Attempt to resolve target class with multi-version fallback support
             val targetClass = try {
-                classLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
+                targetClassLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
             } catch (e: ClassNotFoundException) {
                 Log.d(TAG, "Modern shade path not found, falling back to legacy path...")
-                classLoader.loadClass("com.android.systemui.statusbar.phone.NotificationShadeWindowView")
+                targetClassLoader.loadClass("com.android.systemui.statusbar.phone.NotificationShadeWindowView")
             }
 
             val targetMethod = targetClass.getDeclaredMethod("onFinishInflate")
 
-            // Install the hook using modern API 102 chain interceptor
+            // Install the hook using modern API 102 chain interceptor model
             hook(targetMethod).intercept { chain ->
                 val result = chain.proceed()
 
                 try {
                     val view = chain.thisObject as? View
                     if (view != null) {
-                        // Apply background tint and render effect conditionally for API 31+
+                        // Hardware-accelerated frosted glass effect requires Android 12 (API 31)+
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             if (view.renderEffect == null) {
                                 view.setBackgroundColor(Color.argb(45, 15, 15, 15))
