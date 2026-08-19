@@ -47,7 +47,7 @@ android {
 dependencies {
     // LibXposed API 102 dependency (compileOnly so it isn't bundled into the APK runtime)
     compileOnly("io.github.libxposed:api:102.0.0")
-
+implementation("com.google.android.material:material:1.12.0")
     // AndroidX Core support
     implementation("androidx.core:core-ktx:1.13.1")
 }
