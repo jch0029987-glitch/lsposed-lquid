@@ -21,7 +21,6 @@ class GlassModule : XposedModule() {
         Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
-            // PackageReadyParam guarantees the classloader is available
             val targetClassLoader = param.classLoader
 
             val targetClass = try {
@@ -40,19 +39,18 @@ class GlassModule : XposedModule() {
                     val view = chain.thisObject as? View
                     if (view != null) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            // Check renderEffect safely
-                            if (view.renderEffect == null) {
-                                view.setBackgroundColor(Color.argb(45, 15, 15, 15))
+                            // Avoid Kotlin property delegation issues by using standard method invocation or checking via reflection/cast if needed
+                            // Calling setRenderEffect directly avoids the getter resolution error entirely:
+                            view.setBackgroundColor(Color.argb(45, 15, 15, 15))
 
-                                val blurEffect = RenderEffect.createBlurEffect(
-                                    30f,
-                                    30f,
-                                    Shader.TileMode.CLAMP
-                                )
-                                view.setRenderEffect(blurEffect)
+                            val blurEffect = RenderEffect.createBlurEffect(
+                                30f,
+                                30f,
+                                Shader.TileMode.CLAMP
+                            )
+                            view.setRenderEffect(blurEffect)
 
-                                Log.d(TAG, "Successfully applied liquid glass blur filter.")
-                            }
+                            Log.d(TAG, "Successfully applied liquid glass blur filter.")
                         }
                     }
                 } catch (innerE: Throwable) {
