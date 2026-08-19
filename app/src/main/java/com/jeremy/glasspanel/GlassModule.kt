@@ -14,7 +14,6 @@ class GlassModule : XposedModule() {
 
     companion object {
         private const val TAG = "GlassPanel"
-        // Prevent redundant hook logic/logging on views that have already been processed
         private val processedViews = WeakHashMap<View, Boolean>()
     }
 
@@ -26,13 +25,14 @@ class GlassModule : XposedModule() {
         try {
             val targetClassLoader = param.classLoader
 
-            val targetClass = try {
-                targetClassLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
-            } catch (e: ClassNotFoundException) {
-                Log.d(TAG, "Modern shade path not found, falling back to legacy path...")
-                targetClassLoader.loadClass("com.android.systemui.statusbar.phone.NotificationShadeWindowView")
+            // Dynamic path resolution to survive Android dessert version changes
+            val targetClass = findNotificationShadeWindowView(targetClassLoader)
+            if (targetClass == null) {
+                Log.e(TAG, "Failed to locate NotificationShadeWindowView class across all known namespaces.")
+                return
             }
 
+            Log.d(TAG, "Successfully resolved target window class: ${targetClass.name}")
             val targetMethod = targetClass.getDeclaredMethod("onFinishInflate")
 
             hook(targetMethod).intercept { chain ->
@@ -41,7 +41,6 @@ class GlassModule : XposedModule() {
                 try {
                     val view = chain.thisObject as? View
                     if (view != null) {
-                        // Ensure we only apply this once per view instance without needing getRenderEffect()
                         if (processedViews[view] != true && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             view.setBackgroundColor(Color.argb(45, 15, 15, 15))
 
@@ -65,5 +64,23 @@ class GlassModule : XposedModule() {
         } catch (e: Throwable) {
             Log.e(TAG, "Critical failure hooking notification shade -> ${e.message}", e)
         }
+    }
+
+    private fun findNotificationShadeWindowView(classLoader: ClassLoader): Class<*>? {
+        val candidatePaths = arrayOf(
+            "com.android.systemui.shade.NotificationShadeWindowView",
+            "com.android.systemui.statusbar.phone.NotificationShadeWindowView",
+            "com.android.systemui.scene.ui.composable.SceneContainerWindowView", // Just in case of compose container roots
+            "com.android.systemui.statusbar.phone.StatusBarWindowView"
+        ]
+
+        for (path in candidatePaths) {
+            try {
+                return classLoader.loadClass(path)
+            } catch (_: ClassNotFoundException) {
+                // Try next candidate path
+            }
+        }
+        return null
     }
 }
