@@ -1,5 +1,6 @@
 package com.jeremy.glasspanel
 
+import android.content.Context
 import android.graphics.Color
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -21,10 +22,9 @@ class GlassModule : XposedModule() {
         Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
-            // Safely resolve class loader from the package loaded parameters
-            val targetClassLoader = param.classLoader
+            // Fix: Use param.classLoader or fallback safely to module/system class loaders
+            val targetClassLoader = param.classLoader ?: javaClass.classLoader ?: ClassLoader.getSystemClassLoader()
 
-            // Attempt to resolve target class with multi-version fallback support
             val targetClass = try {
                 targetClassLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
             } catch (e: ClassNotFoundException) {
@@ -34,16 +34,16 @@ class GlassModule : XposedModule() {
 
             val targetMethod = targetClass.getDeclaredMethod("onFinishInflate")
 
-            // Install the hook using modern API 102 chain interceptor model
             hook(targetMethod).intercept { chain ->
                 val result = chain.proceed()
 
                 try {
                     val view = chain.thisObject as? View
                     if (view != null) {
-                        // Hardware-accelerated frosted glass effect requires Android 12 (API 31)+
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            if (view.renderEffect == null) {
+                            // Fix: Use explicit getRenderEffect() / setRenderEffect() methods 
+                            // to avoid Kotlin property resolution errors.
+                            if (view.getRenderEffect() == null) {
                                 view.setBackgroundColor(Color.argb(45, 15, 15, 15))
 
                                 val blurEffect = RenderEffect.createBlurEffect(
