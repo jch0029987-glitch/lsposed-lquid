@@ -23,9 +23,13 @@ class GlassModule : XposedModule() {
         Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
-            val targetClassLoader = param.classLoader
+            // Ensure we use the correct classloader tied to SystemUI, with a failsafe
+            var targetClassLoader = param.classLoader
+            if (targetClassLoader == null) {
+                Log.w(TAG, "param.classLoader was null, pulling from system thread context...")
+                targetClassLoader = Thread.currentThread().contextClassLoader
+            }
 
-            // Dynamic path resolution to survive Android dessert version changes
             val targetClass = findNotificationShadeWindowView(targetClassLoader)
             if (targetClass == null) {
                 Log.e(TAG, "Failed to locate NotificationShadeWindowView class across all known namespaces.")
