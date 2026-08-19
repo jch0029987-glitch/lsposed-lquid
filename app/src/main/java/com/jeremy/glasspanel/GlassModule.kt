@@ -1,6 +1,5 @@
 package com.jeremy.glasspanel
 
-import android.content.Context
 import android.graphics.Color
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -22,8 +21,8 @@ class GlassModule : XposedModule() {
         Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
-            // Fix: Use param.classLoader or fallback safely to module/system class loaders
-            val targetClassLoader = param.classLoader ?: javaClass.classLoader ?: ClassLoader.getSystemClassLoader()
+            // Access class loader directly from PackageLoadedParam
+            val targetClassLoader = param.classLoader
 
             val targetClass = try {
                 targetClassLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
@@ -41,9 +40,8 @@ class GlassModule : XposedModule() {
                     val view = chain.thisObject as? View
                     if (view != null) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            // Fix: Use explicit getRenderEffect() / setRenderEffect() methods 
-                            // to avoid Kotlin property resolution errors.
-                            if (view.getRenderEffect() == null) {
+                            // Use standard method call for safety across Kotlin versions
+                            if (view.renderEffect == null) {
                                 view.setBackgroundColor(Color.argb(45, 15, 15, 15))
 
                                 val blurEffect = RenderEffect.createBlurEffect(
