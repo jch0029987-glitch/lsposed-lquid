@@ -3,6 +3,7 @@ package com.jeremy.glasspanel
 import android.graphics.Color
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.os.Build
 import android.util.Log
 import android.view.View
 import io.github.libxposed.api.XposedModule
@@ -21,7 +22,7 @@ class GlassModule : XposedModule() {
 
         try {
             val classLoader = param.classLoader
-            
+
             // Attempt to resolve target class with multi-version fallback support
             val targetClass = try {
                 classLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
@@ -39,20 +40,20 @@ class GlassModule : XposedModule() {
                 try {
                     val view = chain.thisObject as? View
                     if (view != null) {
-                        // Safe check for render effect availability
-                        if (view.renderEffect == null) {
-                            // Apply translucent tinted glass background (dark frosted tint)
-                            view.setBackgroundColor(Color.argb(45, 15, 15, 15))
+                        // Apply background tint and render effect conditionally for API 31+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            if (view.renderEffect == null) {
+                                view.setBackgroundColor(Color.argb(45, 15, 15, 15))
 
-                            // Apply hardware-accelerated blur render effect
-                            val blurEffect = RenderEffect.createBlurEffect(
-                                30f, // Blur X
-                                30f, // Blur Y
-                                Shader.TileMode.CLAMP
-                            )
-                            view.setRenderEffect(blurEffect)
+                                val blurEffect = RenderEffect.createBlurEffect(
+                                    30f,
+                                    30f,
+                                    Shader.TileMode.CLAMP
+                                )
+                                view.setRenderEffect(blurEffect)
 
-                            Log.d(TAG, "Successfully applied liquid glass blur filter.")
+                                Log.d(TAG, "Successfully applied liquid glass blur filter.")
+                            }
                         }
                     }
                 } catch (innerE: Throwable) {
