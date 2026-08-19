@@ -21,8 +21,8 @@ class GlassModule : XposedModule() {
         Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
-            // Access class loader directly from PackageLoadedParam
-            val targetClassLoader = param.classLoader
+            // Retrieve classloader safely via context or system fallback if param lacks direct property
+            val targetClassLoader = param.getClassLoader() ?: ClassLoader.getSystemClassLoader()
 
             val targetClass = try {
                 targetClassLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
@@ -40,8 +40,8 @@ class GlassModule : XposedModule() {
                     val view = chain.thisObject as? View
                     if (view != null) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            // Use standard method call for safety across Kotlin versions
-                            if (view.renderEffect == null) {
+                            // Explicit function call prevents property resolution failure
+                            if (view.getRenderEffect() == null) {
                                 view.setBackgroundColor(Color.argb(45, 15, 15, 15))
 
                                 val blurEffect = RenderEffect.createBlurEffect(
