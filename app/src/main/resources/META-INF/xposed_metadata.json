@@ -1,0 +1,9 @@
+{
+  "name": "Glass Panel Module",
+  "description": "Applies a liquid glass frosted blur effect to the SystemUI notification panel.",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "author": "Jeremy",
+  "minApiVersion": 102,
+  "targetApiVersion": 102
+}
