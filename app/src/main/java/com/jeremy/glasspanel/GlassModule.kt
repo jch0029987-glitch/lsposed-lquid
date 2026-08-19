@@ -8,17 +8,17 @@ import io.github.libxposed.api.XposedModule
 
 class GlassModule : XposedModule() {
 
-    override fun onPackageLoaded(packageName: String, classLoader: ClassLoader, apkPath: String) {
+    override fun onPackageLoaded(packageName: String, classLoader: ClassLoader) {
         if (packageName != "com.android.systemui") return
 
-        log("GlassPanel: Initialized inside SystemUI via LibXposed API 102")
+        log("GlassPanel", "Initialized inside SystemUI via LibXposed API 102")
 
         try {
             // Attempt to resolve target class with multi-version fallback support
             val targetClass = try {
                 classLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
             } catch (e: ClassNotFoundException) {
-                log("GlassPanel: Modern shade path not found, falling back to legacy path...")
+                log("GlassPanel", "Modern shade path not found, falling back to legacy path...")
                 classLoader.loadClass("com.android.systemui.statusbar.phone.NotificationShadeWindowView")
             }
 
@@ -45,17 +45,17 @@ class GlassModule : XposedModule() {
                             )
                             view.setRenderEffect(blurEffect)
 
-                            log("GlassPanel: Successfully applied liquid glass blur filter.")
+                            log("GlassPanel", "Successfully applied liquid glass blur filter.")
                         }
                     }
                 } catch (innerE: Throwable) {
-                    log("GlassPanel: Non-fatal error during hook execution -> ${innerE.message}")
+                    log("GlassPanel", "Non-fatal error during hook execution -> ${innerE.message}")
                 }
 
                 result
             }
         } catch (e: Throwable) {
-            log("GlassPanel: Critical failure hooking notification shade -> ${e.message}")
+            log("GlassPanel", "Critical failure hooking notification shade -> ${e.message}")
         }
     }
 }
