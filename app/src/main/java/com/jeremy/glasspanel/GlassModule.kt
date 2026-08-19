@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.View
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
+import java.lang.reflect.Method
 import java.util.WeakHashMap
 
 class GlassModule : XposedModule() {
@@ -23,12 +24,7 @@ class GlassModule : XposedModule() {
         Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
-            // Ensure we use the correct classloader tied to SystemUI, with a failsafe
-            var targetClassLoader = param.classLoader
-            if (targetClassLoader == null) {
-                Log.w(TAG, "param.classLoader was null, pulling from system thread context...")
-                targetClassLoader = Thread.currentThread().contextClassLoader
-            }
+            val targetClassLoader = param.classLoader ?: Thread.currentThread().contextClassLoader
 
             val targetClass = findNotificationShadeWindowView(targetClassLoader)
             if (targetClass == null) {
@@ -36,8 +32,16 @@ class GlassModule : XposedModule() {
                 return
             }
 
-            Log.d(TAG, "Successfully resolved target window class: ${targetClass.name}")
-            val targetMethod = targetClass.getDeclaredMethod("onFinishInflate")
+                                                               Log.d(TAG, "Successfully resolved target window class: ${targetClass.name}")
+
+            // Safely find a reliable lifecycle method to hook
+            val targetMethod = findTargetMethod(targetClass)
+            if (targetMethod == null) {
+                Log.e(TAG, "Failed to find onFinishInflate or onAttachedToWindow on ${targetClass.name}")
+                return
+            }
+
+            Log.d(TAG, "Successfully hooked method: ${targetMethod.name}")
 
             hook(targetMethod).intercept { chain ->
                 val result = chain.proceed()
@@ -76,7 +80,7 @@ class GlassModule : XposedModule() {
             "com.android.systemui.statusbar.phone.NotificationShadeWindowView",
             "com.android.systemui.scene.ui.composable.SceneContainerWindowView",
             "com.android.systemui.statusbar.phone.StatusBarWindowView"
-        )
+        ]
 
         for (path in candidatePaths) {
             try {
@@ -84,6 +88,32 @@ class GlassModule : XposedModule() {
             } catch (_: ClassNotFoundException) {
                 // Try next candidate path
             }
+        }
+        return null
+    }
+
+    private fun findTargetMethod(clazz: Class<*>): Method? {
+        val methodsToTry = arrayOf("onFinishInflate", "onAttachedToWindow")
+        for (methodName in methodsToTry) {
+            try {
+                val method = clazz.getDeclaredMethod(methodName)
+                method.isAccessible = true
+                return method
+            } catch (_: NoSuchMethodException) {
+                // Check parent classes or next method name
+            }
+        }
+        
+        // Fallback: search declared methods for either name if signatures differ
+        var current: Class<*>? = clazz
+        while (current != null && current != Any::class.java) {
+            for (method in current.declaredMethods) {
+                if (method.name in methodsToTry) {
+                    method.isAccessible = true
+                    return method
+                }
+            }
+            current = current.superclass
         }
         return null
     }
