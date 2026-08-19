@@ -8,11 +8,14 @@ import android.util.Log
 import android.view.View
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
+import java.util.WeakHashMap
 
 class GlassModule : XposedModule() {
 
     companion object {
         private const val TAG = "GlassPanel"
+        // Prevent redundant hook logic/logging on views that have already been processed
+        private val processedViews = WeakHashMap<View, Boolean>()
     }
 
     override fun onPackageReady(param: PackageReadyParam) {
@@ -38,9 +41,8 @@ class GlassModule : XposedModule() {
                 try {
                     val view = chain.thisObject as? View
                     if (view != null) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            // Avoid Kotlin property delegation issues by using standard method invocation or checking via reflection/cast if needed
-                            // Calling setRenderEffect directly avoids the getter resolution error entirely:
+                        // Ensure we only apply this once per view instance without needing getRenderEffect()
+                        if (processedViews[view] != true && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             view.setBackgroundColor(Color.argb(45, 15, 15, 15))
 
                             val blurEffect = RenderEffect.createBlurEffect(
@@ -49,18 +51,19 @@ class GlassModule : XposedModule() {
                                 Shader.TileMode.CLAMP
                             )
                             view.setRenderEffect(blurEffect)
+                            processedViews[view] = true
 
                             Log.d(TAG, "Successfully applied liquid glass blur filter.")
                         }
                     }
                 } catch (innerE: Throwable) {
-                    Log.e(TAG, "Non-fatal error during hook execution -> ${innerE.message}")
+                    Log.e(TAG, "Non-fatal error during hook execution -> ${innerE.message}", innerE)
                 }
 
                 result
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "Critical failure hooking notification shade -> ${e.message}")
+            Log.e(TAG, "Critical failure hooking notification shade -> ${e.message}", e)
         }
     }
 }
