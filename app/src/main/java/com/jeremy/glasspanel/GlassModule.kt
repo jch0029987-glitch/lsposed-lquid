@@ -26,7 +26,6 @@ class GlassModule : XposedModule() {
         try {
             val targetClassLoader = param.classLoader ?: Thread.currentThread().contextClassLoader
 
-            // Expanded candidate list covering modern Compose container roots, flexiglass, and legacy paths
             val targetClass = findWorkingWindowView(targetClassLoader)
             if (targetClass == null) {
                 Log.e(TAG, "All shade/status bar window paths exhausted. Aborting hook.")
@@ -75,13 +74,13 @@ class GlassModule : XposedModule() {
     }
 
     private fun findWorkingWindowView(classLoader: ClassLoader): Class<*>? {
-        val candidatePaths = arrayOf(
+        val candidatePaths = listOf(
             "com.android.systemui.shade.NotificationShadeWindowView",
             "com.android.systemui.statusbar.phone.NotificationShadeWindowView",
             "com.android.systemui.scene.ui.composable.SceneContainerWindowView",
             "com.android.systemui.statusbar.phone.PhoneStatusBarView",
             "com.android.systemui.statusbar.phone.StatusBarWindowView"
-        ]
+        )
 
         for (path in candidatePaths) {
             try {
@@ -98,7 +97,7 @@ class GlassModule : XposedModule() {
     }
 
     private fun findTargetMethod(clazz: Class<*>): Method? {
-        val methodsToTry = arrayOf("onFinishInflate", "onAttachedToWindow")
+        val methodsToTry = listOf("onFinishInflate", "onAttachedToWindow")
         for (methodName in methodsToTry) {
             try {
                 val method = clazz.getDeclaredMethod(methodName)
@@ -109,7 +108,6 @@ class GlassModule : XposedModule() {
             }
         }
         
-        // Deep scan parent hierarchy if exact signature search fails
         var current: Class<*>? = clazz
         while (current != null && current != Any::class.java) {
             for (method in current.declaredMethods) {
