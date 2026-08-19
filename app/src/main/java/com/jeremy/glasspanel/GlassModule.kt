@@ -32,9 +32,8 @@ class GlassModule : XposedModule() {
                 return
             }
 
-                                                               Log.d(TAG, "Successfully resolved target window class: ${targetClass.name}")
+            Log.d(TAG, "Successfully resolved target window class: ${targetClass.name}")
 
-            // Safely find a reliable lifecycle method to hook
             val targetMethod = findTargetMethod(targetClass)
             if (targetMethod == null) {
                 Log.e(TAG, "Failed to find onFinishInflate or onAttachedToWindow on ${targetClass.name}")
@@ -80,13 +79,13 @@ class GlassModule : XposedModule() {
             "com.android.systemui.statusbar.phone.NotificationShadeWindowView",
             "com.android.systemui.scene.ui.composable.SceneContainerWindowView",
             "com.android.systemui.statusbar.phone.StatusBarWindowView"
-        ]
+        )
 
         for (path in candidatePaths) {
             try {
                 return classLoader.loadClass(path)
             } catch (_: ClassNotFoundException) {
-                // Try next candidate path
+                // Try next path
             }
         }
         return null
@@ -100,11 +99,10 @@ class GlassModule : XposedModule() {
                 method.isAccessible = true
                 return method
             } catch (_: NoSuchMethodException) {
-                // Check parent classes or next method name
+                // Try next method name
             }
         }
         
-        // Fallback: search declared methods for either name if signatures differ
         var current: Class<*>? = clazz
         while (current != null && current != Any::class.java) {
             for (method in current.declaredMethods) {
