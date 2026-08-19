@@ -70,9 +70,9 @@ class GlassModule : XposedModule() {
         val candidatePaths = arrayOf(
             "com.android.systemui.shade.NotificationShadeWindowView",
             "com.android.systemui.statusbar.phone.NotificationShadeWindowView",
-            "com.android.systemui.scene.ui.composable.SceneContainerWindowView", // Just in case of compose container roots
+            "com.android.systemui.scene.ui.composable.SceneContainerWindowView",
             "com.android.systemui.statusbar.phone.StatusBarWindowView"
-        ]
+        )
 
         for (path in candidatePaths) {
             try {
