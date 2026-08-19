@@ -26,9 +26,10 @@ class GlassModule : XposedModule() {
         try {
             val targetClassLoader = param.classLoader ?: Thread.currentThread().contextClassLoader
 
-            val targetClass = findNotificationShadeWindowView(targetClassLoader)
+            // Expanded candidate list covering modern Compose container roots, flexiglass, and legacy paths
+            val targetClass = findWorkingWindowView(targetClassLoader)
             if (targetClass == null) {
-                Log.e(TAG, "Failed to locate NotificationShadeWindowView class across all known namespaces.")
+                Log.e(TAG, "All shade/status bar window paths exhausted. Aborting hook.")
                 return
             }
 
@@ -36,7 +37,7 @@ class GlassModule : XposedModule() {
 
             val targetMethod = findTargetMethod(targetClass)
             if (targetMethod == null) {
-                Log.e(TAG, "Failed to find onFinishInflate or onAttachedToWindow on ${targetClass.name}")
+                Log.e(TAG, "Failed to locate layout inflation or attachment method on ${targetClass.name}")
                 return
             }
 
@@ -69,23 +70,28 @@ class GlassModule : XposedModule() {
                 result
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "Critical failure hooking notification shade -> ${e.message}", e)
+            Log.e(TAG, "Critical failure during module initialization -> ${e.message}", e)
         }
     }
 
-    private fun findNotificationShadeWindowView(classLoader: ClassLoader): Class<*>? {
+    private fun findWorkingWindowView(classLoader: ClassLoader): Class<*>? {
         val candidatePaths = arrayOf(
             "com.android.systemui.shade.NotificationShadeWindowView",
             "com.android.systemui.statusbar.phone.NotificationShadeWindowView",
             "com.android.systemui.scene.ui.composable.SceneContainerWindowView",
+            "com.android.systemui.statusbar.phone.PhoneStatusBarView",
             "com.android.systemui.statusbar.phone.StatusBarWindowView"
-        )
+        ]
 
         for (path in candidatePaths) {
             try {
-                return classLoader.loadClass(path)
+                val clazz = classLoader.loadClass(path)
+                Log.d(TAG, "Found valid target class at: $path")
+                return clazz
             } catch (_: ClassNotFoundException) {
-                // Try next path
+                // Continue searching fallback paths
+            } catch (t: Throwable) {
+                Log.w(TAG, "Error loading candidate $path: ${t.message}")
             }
         }
         return null
@@ -99,10 +105,11 @@ class GlassModule : XposedModule() {
                 method.isAccessible = true
                 return method
             } catch (_: NoSuchMethodException) {
-                // Try next method name
+                // Try next method
             }
         }
         
+        // Deep scan parent hierarchy if exact signature search fails
         var current: Class<*>? = clazz
         while (current != null && current != Any::class.java) {
             for (method in current.declaredMethods) {
