@@ -3,22 +3,30 @@ package com.jeremy.glasspanel
 import android.graphics.Color
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.util.Log
 import android.view.View
 import io.github.libxposed.api.XposedModule
+import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 
 class GlassModule : XposedModule() {
 
-    override fun onPackageLoaded(packageName: String, classLoader: ClassLoader) {
-        if (packageName != "com.android.systemui") return
+    companion object {
+        private const val TAG = "GlassPanel"
+    }
 
-        log("GlassPanel", "Initialized inside SystemUI via LibXposed API 102")
+    override fun onPackageLoaded(param: PackageLoadedParam) {
+        if (param.packageName != "com.android.systemui") return
+
+        Log.d(TAG, "Initialized inside SystemUI via LibXposed API 102")
 
         try {
+            val classLoader = param.classLoader
+            
             // Attempt to resolve target class with multi-version fallback support
             val targetClass = try {
                 classLoader.loadClass("com.android.systemui.shade.NotificationShadeWindowView")
             } catch (e: ClassNotFoundException) {
-                log("GlassPanel", "Modern shade path not found, falling back to legacy path...")
+                Log.d(TAG, "Modern shade path not found, falling back to legacy path...")
                 classLoader.loadClass("com.android.systemui.statusbar.phone.NotificationShadeWindowView")
             }
 
@@ -26,13 +34,12 @@ class GlassModule : XposedModule() {
 
             // Install the hook using modern API 102 chain interceptor
             hook(targetMethod).intercept { chain ->
-                // Execute original method chain first
                 val result = chain.proceed()
 
                 try {
                     val view = chain.thisObject as? View
                     if (view != null) {
-                        // Idempotent guard: only apply if render effect hasn't been set yet
+                        // Safe check for render effect availability
                         if (view.renderEffect == null) {
                             // Apply translucent tinted glass background (dark frosted tint)
                             view.setBackgroundColor(Color.argb(45, 15, 15, 15))
@@ -45,17 +52,17 @@ class GlassModule : XposedModule() {
                             )
                             view.setRenderEffect(blurEffect)
 
-                            log("GlassPanel", "Successfully applied liquid glass blur filter.")
+                            Log.d(TAG, "Successfully applied liquid glass blur filter.")
                         }
                     }
                 } catch (innerE: Throwable) {
-                    log("GlassPanel", "Non-fatal error during hook execution -> ${innerE.message}")
+                    Log.e(TAG, "Non-fatal error during hook execution -> ${innerE.message}")
                 }
 
                 result
             }
         } catch (e: Throwable) {
-            log("GlassPanel", "Critical failure hooking notification shade -> ${e.message}")
+            Log.e(TAG, "Critical failure hooking notification shade -> ${e.message}")
         }
     }
 }
